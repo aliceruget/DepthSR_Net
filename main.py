@@ -18,7 +18,7 @@ import yaml
 import imageio
 
 
-
+print('Test for update git'')
 
 parser = argparse.ArgumentParser('')
 parser.add_argument('--data_path', type=str)
