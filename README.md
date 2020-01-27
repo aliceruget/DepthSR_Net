@@ -6,5 +6,8 @@ Run :
 - *is_train* is a boolean. True for training. False for testing.
 - *checkpoint_dir*
 
-`python main.py --data_path =  --is_train = --config= --checkpoint_dir=`
+`python main.py --data_path = ''  --is_train = '' --config= ''--checkpoint_dir= ''`
+
+
+
 
