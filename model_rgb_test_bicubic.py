@@ -160,8 +160,8 @@ class SRCNN(object):
       print("Testing...")
       tm = time.time()
       
-      if config.save_parameters:
-          result, residual_map,conv1_f, conv3_f, conv5_f, conv7_f, w1_f, w3_f, w5_f, w7_f, bias1_f, bias3_f, bias5_f, bias7_f, \
+      #if config.save_parameters:
+      result, residual_map,conv1_f, conv3_f, conv5_f, conv7_f, w1_f, w3_f, w5_f, w7_f, bias1_f, bias3_f, bias5_f, bias7_f, \
           pool1_f, pool2_f, pool3_f, conv1, conv2, conv3, conv4, conv5, conv6, conv7, conv8, conv9, conv10, w1, w2, w3, w4, w5, w6, w7,w8, w9, w10,\
           bias1, bias2, bias3, bias4, bias5, bias6, bias7, bias8, bias9, bias10, pool1, pool2, pool3, pool4, pool1_input, pool2_input,pool3_input,\
           pool4_input, conv_input1, conv_input2, conv_input3, conv_input4, w_input1, w_input2,w_input3,w_input4,deconv2,deconv3,deconv4,deconv5,\
@@ -204,6 +204,8 @@ class SRCNN(object):
            'Rec time ': time.time() - tm}
       
          sio.savemat(os.path.join(config.results_path, 'parameters.mat'), dictionary)
+  
+
 
       return(rmse_value)
 

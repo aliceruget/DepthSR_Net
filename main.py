@@ -26,7 +26,7 @@ parser.add_argument('--is_train', type=str)
 parser.add_argument('--result_path', type=str)
 parser.add_argument('--config', type=str)
 parser.add_argument('--checkpoint_dir', type=str)
-parser.add_argument('--save_parameters', type=str)
+parser.add_argument('--save_parameters', type=bool)
 args = parser.parse_args()
 
 data_path = args.data_path
@@ -80,18 +80,26 @@ def main(_):
     sio.savemat(os.path.join(results_path, 'configuration.mat'),{"data_path":data_path, "is_train":is_train,"checkpoint_path":checkpoint_path, "config":config})
     
     #data_dir = os.path.join(os.getcwd(), 'DATA_TEST' )
-    data_dir = data_path
-    depth_input_down_list=glob.glob(os.path.join(data_dir,'*Df_down.mat'))
-    depth_label_list     =glob.glob(os.path.join(data_dir,'*Df.mat'))
+    data_dir = data_path      
+    #depth_input_down_list=glob.glob(os.path.join(data_dir,'*Df_down.mat'))
+    #depth_label_list     =glob.glob(os.path.join(data_dir,'*Df.mat'))
     rgb_input_list       =glob.glob(os.path.join(data_dir,'*_RGB.bmp'))
 
+    print(len(rgb_input_list))
     image_test=[]
     RMSE_tab = []
     for ide in range(0,len(rgb_input_list)):
       image_test.append(np.float32(imageio.imread(rgb_input_list[ide])) / 255)
     for idx in range(0,len(rgb_input_list)):
-      print(idx)
-      depth_up = sio.loadmat(depth_label_list[0])['I_up']
+      depth_input_down_image   = glob.glob(os.path.join(data_dir,str(idx)+'_'+'Df_down.mat'))
+      depth_label_list_image   = glob.glob(os.path.join(data_dir,str(idx)+'_'+'Df.mat'))
+      rgb_input_list_image     = glob.glob(os.path.join(data_dir,str(idx)+'_'+'RGB.bmp'))
+      print('IMAGE - IMAGE')
+      print(depth_input_down_image)
+      print(depth_label_list_image)
+      print(rgb_input_list_image)
+      print('index_image ='+str(idx))
+      depth_up = sio.loadmat(depth_label_list_image[0])['I_up']
       #image_path = os.path.join(os.getcwd(), 'sample')
       image_path = results_path
       image_path = os.path.join(image_path, str(idx)+"_up.png" )
@@ -108,10 +116,10 @@ def main(_):
                   i=idx,
                   checkpoint_dir=FLAGS.checkpoint_dir,
                   sample_dir=FLAGS.sample_dir,
-                  test_dir=rgb_input_list[0],
-                  test_depth=depth_input_down_list[0],
-                  test_label=depth_label_list[0])
+                  test_dir=rgb_input_list_image[0],
+                  test_depth=depth_input_down_image[0],
+                  test_label=depth_label_list_image[0])
         RMSE_tab.append(srcnn.train(FLAGS))
-
+        sio.savemat(os.path.join(results_path, 'RMSE_tab.mat'), {'RMSE_tab':RMSE_tab})
 if __name__ == '__main__':
  tf.compat.v1.app.run()

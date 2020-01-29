@@ -18,7 +18,7 @@ python main.py --data_path='/Users/aliceruget/Documents/PhD/Dataset/Paper_datase
 
 /Users/aliceruget/Documents/PhD/Codes_HierarchiaclFeatures/Papers_version/depth_16_test/DATA_TEST_original
 
-python main.py --data_path='/Users/aliceruget/Documents/PhD/Analysis/Robustness_blur/depth_16/DATA_TEST' --is_train='0' --config='/Users/aliceruget/Documents/PhD/DepthSR_Net_AR/Configs/cfg_original_scale16.yaml' --checkpoint_dir='/Users/aliceruget/Documents/PhD/DepthSR_Net_AR/Checkpoint/16' --result_path='/Users/aliceruget/Documents/PhD/DepthSR_Net_AR/Results/Smoothness_scale16'
+python main.py --data_path='/Users/aliceruget/Documents/PhD/Analysis/Robustness_blur/depth_16/DATA_TEST' --is_train='0' --config='/Users/aliceruget/Documents/PhD/DepthSR_Net_AR/Configs/cfg_original_scale16.yaml' --checkpoint_dir='/Users/aliceruget/Documents/PhD/DepthSR_Net_AR/Checkpoint/16' --result_path='/Users/aliceruget/Documents/PhD/DepthSR_Net_AR/Results/Smoothness_scale16' --save_parameters='0'
 
 
 /Users/aliceruget/Documents/PhD/Analysis/Robustness_blur/depth_16/DATA_TEST
