@@ -14,8 +14,9 @@ import scipy.ndimage
 import numpy as np
 from skimage import io,data,color
 import tensorflow as tf
+import imageio
 
-FLAGS = tf.app.flags.FLAGS
+FLAGS = tf.compat.v1.flags.FLAGS
 
 def read_data(path):
   """
@@ -47,7 +48,7 @@ def preprocess(path, scale=3):
   # path_depth = 
   # path_I = 
   image = imread(path, is_grayscale=True)
-  I_add = imread(path,is_grayscale=False)
+  #I_add = imread(path, is_grayscale=False)
   label_ = modcrop(image, scale)
 
   # Must be normalized.astype(np.uint8)
@@ -70,7 +71,7 @@ def prepare_data(sess, dataset):
     For train dataset, output data would be ['.../t1.bmp', '.../t2.bmp', ..., '.../t99.bmp']
   """
   if FLAGS.is_train:
-    filenames = os.listdir(dataset)
+    #filenames = os.listdir(dataset)
     data_dir = os.path.join(os.getcwd(), dataset)
     data = glob.glob(os.path.join(data_dir, "*.bmp"))
     data = data+glob.glob(os.path.join(data_dir, "*.jpg"))+glob.glob(os.path.join(data_dir, "*.tif"))
@@ -101,9 +102,10 @@ def imread(path, is_grayscale=True):
   Default value is gray-scale, and image is read by YCbCr format as the paper said.
   """
   if is_grayscale:
-    return scipy.misc.imread(path, flatten=True, mode='RGB').astype(np.float)
+    return imageio.imread(path, pilmode = 'RGB', as_gray = True).astype(np.float)
   else:
-    return scipy.misc.imread(path, mode='RGB').astype(np.float)
+    return imageio.imread(path, pilmode = 'RGB').astype(np.float)
+ 
 # 
 def modcrop(image, scale=8):
   """
@@ -131,7 +133,7 @@ def get_image_batch(train_list,start_id,end_id):
 
   for pair in target_list:
     input_img_ob = scipy.io.loadmat(pair)
-    dlist=[key for key in input_img_ob if not key.startswith('__')]
+    dlist = [key for key in input_img_ob if not key.startswith('__')]
     input_img = input_img_ob[dlist[0]]
     input_list.append(input_img)
 
@@ -141,6 +143,7 @@ def get_image_batch(train_list,start_id,end_id):
   # import pdb  
   # pdb.set_trace()
   return input_list
+
 def get_image_batch_new(train_list):
   #print(train_list)
   input_batch  = []
@@ -152,6 +155,7 @@ def get_image_batch_new(train_list):
   # import pdb  
   # pdb.set_trace()
   return input_img
+
 def input_setup(sess, config):
   """
   Read image files and make their sub-images and saved them as a h5 file format.
@@ -175,8 +179,8 @@ def input_setup(sess, config):
       else:
         h, w = input_.shape
 
-      for x in range(0, h-config.image_size+1, config.image_size):
-        for y in range(0, w-config.image_size+1, config.image_size):
+      for x in range(0 , h - config.image_size + 1, config.image_size):
+        for y in range(0 , w - config.image_size + 1, config.image_size):
           sub_input = input_[x:x+config.image_size, y:y+config.image_size,:] # [33 x 33]
           sub_label = label_[x:x+config.image_size, y:y+config.image_size,:] # [21 x 21]
           A=1-0.2*np.random.rand(1)
@@ -213,7 +217,7 @@ def input_setup(sess, config):
           
   else:
     input_, label_ = preprocess(data[2], config.scale)
-
+    print('I AM ASKING FOR PREPROCESSING ............')
     if len(input_.shape) == 3:
       h, w, _ = input_.shape
     else:
@@ -254,7 +258,7 @@ def rmse(im1,im2):
   rmse=np.sqrt(diff_sum)
   return rmse    
 def imsave(image, path):
-  return scipy.misc.imsave(path, image)
+  return imageio.imwrite(path, image)
 # def rgb2ycbcr(x):
 #   r,g,b=x[:,:,0]*255,x[:,:,1]*255,x[:,:,2]*255
 #   y=(0.257*r+0.564*g+0.098*b+16)/255

@@ -74,8 +74,8 @@ class SRCNN(object):
     
 
       I_add_input_test = imread(self.test_dir, is_grayscale=True)/255   
-      image_path = os.path.join(os.getcwd(), config.sample_dir)
-      image_path = os.path.join(image_path, str(self.i)+"_rgb.png" )
+      
+      image_path = os.path.join(config.sample_dir, str(self.i)+"_rgb.png" )
       imsave(I_add_input_test, image_path)
 
       I_add_input_test=I_add_input_test.reshape([1,self.h,self.w,self.c_dim])
@@ -87,8 +87,7 @@ class SRCNN(object):
       max_down=np.max(depth_down)
       min_down=np.min(depth_down)
 
-      image_path = os.path.join(os.getcwd(), config.sample_dir)
-      image_path = os.path.join(image_path, str(self.i)+"_down.png" )
+      image_path = os.path.join(config.sample_dir, str(self.i)+"_down.png" )
       imsave(depth_down, image_path)
       depth_down=depth_down.reshape([1, self.h, self.w, 1])
 
@@ -173,7 +172,8 @@ class SRCNN(object):
       result = np.minimum(np.maximum(result.squeeze(),0),1)
 
       result = ((result)*(max_label-min_label)+min_label).astype(np.uint8)
-
+      print('TYPES !!!!')
+      print(depth_label.dtype)
       rmse_value = rmse(depth_label,result) 
       
       print("rmse: [%f]" % rmse_value)
@@ -188,18 +188,24 @@ class SRCNN(object):
       print("initial rmse: [%f]" % init_rmse)
       
       if config.save_parameters:
-          sio.savemat(os.path.join(config.results_path, "parameters"), {'Rec time ': time.time() - tm, 'init_rmse' : init_rmse, \
-                      'rmse' : rmse_value, 'result' : result, 'residual_map':residual_map,'conv1_f':conv1_f, 'conv3_f':conv3_f, \
-                      'conv5_f':conv5_f,'conv7_f' : conv7_f, \
-                      'conv1':conv1, 'conv2':conv2, 'conv3':conv3,'conv4':conv4, 'conv5':conv5, 'conv6':conv6, \
-                      'conv7' : conv7, 'conv8':conv8, 'conv9':conv9, 'conv10':conv10,'conv_input1' : conv_input1, \
-                      'conv_input2':conv_input2, 'conv_input3':conv_input3, 'conv_input4':conv_input4,'deconv2':deconv2,\
-                      'deconv3':deconv3, 'deconv4':deconv4, 'deconv5':deconv5, 'conv13':conv13,\
-                      'conv14' : conv14, 'conv15':conv15, 'conv16':conv16, 'conv17':conv17,'conv18' : conv18, \
-                      'conv19':conv19, 'conv20':conv20, 'I_init': I_add_input_test, 'D_init':depth_down, 'w1_f':w1_f ,\
-                      'w3_f':w3_f, 'w5_f':w5_f, 'w7_f':w7_f,'w1':w1, 'w2':w2, 'w3':w3, 'w4':w4, 'w5':w5, 'w6':w6, 'w7':w7,\
-                      'w8':w8, 'w9':w9, 'w10':w10, 'w13':w13, 'w14':w14, 'w15':w15, 'w16':w16,'w17':w17,'w18':w18,'w19':w19 ,'w20':w20 })
+         # create dictionary 
+         dictionary = {'encoder_conv':{'conv1':conv1, 'conv2':conv2, 'conv3':conv3,'conv4':conv4, 'conv5':conv5, 'conv6':conv6,'conv7' : conv7, 'conv8':conv8, 'conv9':conv9, 'conv10':conv10},\
+           'encoder_w':{'w1':w1, 'w2':w2, 'w3':w3, 'w4':w4, 'w5':w5, 'w6':w6, 'w7':w7,'w8':w8, 'w9':w9, 'w10':w10}, \
+           'decoder_conv':{'deconv2':deconv2,'deconv3':deconv3, 'deconv4':deconv4, 'deconv5':deconv5, 'conv13':conv13,\
+                      'conv14' : conv14, 'conv15':conv15, 'conv16':conv16, 'conv17':conv17,'conv18' : conv18, 'conv19':conv19, 'conv20':conv20}, \
+           'decoder_w':{'w13':w13, 'w14':w14, 'w15':w15, 'w16':w16,'w17':w17,'w18':w18,'w19':w19 ,'w20':w20}, \
+           'I_branch_F_conv':{'conv1_f':conv1_f, 'conv3_f':conv3_f,'conv5_f':conv5_f,'conv7_f' : conv7_f}, \
+           'I_branch_F_w_f':{'w1_f':w1_f,'w3_f':w3_f, 'w5_f':w5_f, 'w7_f':w7_f}, \
+           'Input_Pyramid_conv':{'conv_input1':conv_input1, 'conv_input2':conv_input2, 'conv_input3':conv_input3, 'conv_input4':conv_input4},\
+           'Input_Pyramid_w':{'w_input1':w_input1, 'w_input2':w_input2, 'w_input3':w_input3, 'w_input4':w_input4}, \
+           'rmse':{'init_rmse' : init_rmse, 'rmse' : rmse_value}, \
+           'inputs':{'I_init': I_add_input_test, 'D_down':depth_down, 'D_label':depth_label}, \
+           'results':{'result' : result, 'residual_map':residual_map}, \
+           'Rec time ': time.time() - tm}
       
+         sio.savemat(os.path.join(config.results_path, 'parameters.mat'), dictionary)
+
+      return(rmse_value)
 
     
   def model(self):
