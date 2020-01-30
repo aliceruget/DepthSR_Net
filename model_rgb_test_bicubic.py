@@ -101,10 +101,10 @@ class SRCNN(object):
       depth_label_list     =glob.glob(os.path.join(data_dir,'*_patch_depth_label.mat'))
       rgb_input_list       =glob.glob(os.path.join(data_dir,'*_patch_I_add.mat'))
 
-      print(data_dir)
-      print(depth_input_down_list)
-      print(depth_label_list)
-      print(rgb_input_list)
+      #(data_dir)
+      #print(depth_input_down_list)
+      #print(depth_label_list)
+      #print(rgb_input_list)
       seed=545
       np.random.seed(seed)
       np.random.shuffle(depth_input_down_list)
@@ -139,15 +139,16 @@ class SRCNN(object):
         batch_idxs=len(depth_input_down_list)
         #print(batch_idxs)
         for idx in range(0,batch_idxs):
+          time_image = time.time()
           #print('idx'+str(idx))
           batch_depth_down=get_image_batch_new(depth_input_down_list[idx])
           batch_depth_labels=get_image_batch_new(depth_label_list[idx])
           batch_I_add = get_image_batch_new(rgb_input_list[idx])/255
           counter += 1
           _, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_depth_down, self.labels: batch_depth_labels,self.I_add:batch_I_add})
-          print("test-------Epoch: [%2d], step: [%2d], image: [%2d], time: [%4.4f], loss: [%.8f]" \
-               % ((ep+1), counter,idx, time.time()-start_time, err))
-
+          #print("test-------Epoch: [%2d], step: [%2d], image: [%2d], time: [%4.4f], loss: [%.8f]" \
+          #     % ((ep+1), counter,idx, time.time()-time_image, err))
+          
           if counter % 1000 == 0:
             print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
               % ((ep+1), counter, time.time()-start_time, err))
@@ -165,6 +166,7 @@ class SRCNN(object):
             loss.append(np.mean(err_test))
             print("test-------Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
                % ((ep+1), counter, time.time()-start_time, err))
+               
             print(loss)
             self.save(config.checkpoint_dir, counter)
 

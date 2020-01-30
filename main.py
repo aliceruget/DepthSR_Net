@@ -8,6 +8,7 @@ from utils import (
 
 import numpy as np
 import tensorflow as tf
+
 import glob
 import pprint
 import os
@@ -16,9 +17,13 @@ import scipy.io as sio
 import argparse
 import yaml
 import imageio
-
-
-
+#from __future__ import absolute_import, division, print_function, unicode_literals
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+config_sess = tf.ConfigProto()
+config_sess.gpu_options.allow_growth = True #Do not assign whole gpu memory, just use it on the go
+config_sess.allow_soft_placement = True #If a operation is not define it the default device, let it execute in another.
+#sess = tf.InteractiveSession(config=config_sess)
 
 parser = argparse.ArgumentParser('')
 parser.add_argument('--data_path', type=str)
@@ -65,7 +70,7 @@ def main(_):
   if not os.path.exists(FLAGS.sample_dir):
     os.makedirs(FLAGS.sample_dir)
   if FLAGS.is_train:
-    with tf.Session() as sess:
+    with tf.Session(config=config_sess) as sess:
       srcnn = SRCNN(sess, 
                   image_size=FLAGS.image_size, 
                   label_size=FLAGS.label_size, 
