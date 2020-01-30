@@ -91,9 +91,10 @@ def main(_):
     for ide in range(0,len(rgb_input_list)):
       image_test.append(np.float32(imageio.imread(rgb_input_list[ide])) / 255)
     for idx in range(0,len(rgb_input_list)):
-      depth_input_down_image   = glob.glob(os.path.join(data_dir,str(idx)+'_'+'Df_down.mat'))
-      depth_label_list_image   = glob.glob(os.path.join(data_dir,str(idx)+'_'+'Df.mat'))
-      rgb_input_list_image     = glob.glob(os.path.join(data_dir,str(idx)+'_'+'RGB.bmp'))
+      depth_input_down_image   = glob.glob(os.path.join(data_dir,str(idx)+'_Df_down.mat'))
+      depth_label_list_image   = glob.glob(os.path.join(data_dir,str(idx)+'_Df.mat'))
+      rgb_input_list_image     = glob.glob(os.path.join(data_dir,str(idx)+'_RGB.bmp'))
+      
       print('IMAGE - IMAGE')
       print(depth_input_down_image)
       print(depth_label_list_image)

@@ -71,7 +71,6 @@ class SRCNN(object):
     if config.is_train:
       A=1;
     else:
-    
 
       I_add_input_test = imread(self.test_dir, is_grayscale=True)/255   
       
@@ -95,10 +94,17 @@ class SRCNN(object):
     if config.is_train:     
       #data_dir = os.path.join(os.getcwd(), 'DATA_TRAIN' )
       data_dir = config.data_path
-      depth_input_down_list=glob.glob(os.path.join(data_dir,'batch_depth_down','*_batch_depth_down.mat'))
-      depth_label_list     =glob.glob(os.path.join(data_dir,'batch_depth_label','*_batch_depth_label.mat'))
-      rgb_input_list       =glob.glob(os.path.join(data_dir,'batch_I_add','*_batch_I_add.mat'))
+      #depth_input_down_list=glob.glob(os.path.join(data_dir,'patch_depth_down','*_patch_depth_down.mat'))
+      #depth_label_list     =glob.glob(os.path.join(data_dir,'patch_depth_label','*_patch_depth_label.mat'))
+      #rgb_input_list       =glob.glob(os.path.join(data_dir,'patch_I_add','*_patch_I_add.mat'))
+      depth_input_down_list=glob.glob(os.path.join(data_dir,'*_patch_depth_down.mat'))
+      depth_label_list     =glob.glob(os.path.join(data_dir,'*_patch_depth_label.mat'))
+      rgb_input_list       =glob.glob(os.path.join(data_dir,'*_patch_I_add.mat'))
 
+      print(data_dir)
+      print(depth_input_down_list)
+      print(depth_label_list)
+      print(rgb_input_list)
       seed=545
       np.random.seed(seed)
       np.random.shuffle(depth_input_down_list)
@@ -107,9 +113,12 @@ class SRCNN(object):
       np.random.seed(seed)
       np.random.shuffle(rgb_input_list)
 
-      depth_input_down_list_test=glob.glob(os.path.join(data_dir,'patch_depth_down_test','*_patch_depth_down.mat'))
-      depth_label_list_test     =glob.glob(os.path.join(data_dir,'patch_depth_label_test','*_patch_depth_label.mat'))
-      rgb_input_list_test       =glob.glob(os.path.join(data_dir,'patch_I_add_test','*_patch_I_add.mat'))
+     # depth_input_down_list_test=glob.glob(os.path.join(data_dir,'patch_depth_down_test','*_patch_depth_down.mat'))
+    # depth_label_list_test     =glob.glob(os.path.join(data_dir,'patch_depth_label_test','*_patch_depth_label.mat'))
+    #  rgb_input_list_test       =glob.glob(os.path.join(data_dir,'patch_I_add_test','*_patch_I_add.mat'))
+      depth_input_down_list_test=glob.glob(os.path.join(data_dir,'patch_depth_down_test.mat'))
+      depth_label_list_test     =glob.glob(os.path.join(data_dir,'patch_depth_label_test.mat'))
+      rgb_input_list_test       =glob.glob(os.path.join(data_dir,'patch_I_add_test.mat'))
       self.train_op = tf.train.AdamOptimizer(config.learning_rate,0.9).minimize(self.loss)
 
 
@@ -126,14 +135,18 @@ class SRCNN(object):
       print("Training...")
       loss = []
       for ep in range(config.epoch):
+        #print('ep'+ str(ep))
         batch_idxs=len(depth_input_down_list)
+        #print(batch_idxs)
         for idx in range(0,batch_idxs):
-
+          #print('idx'+str(idx))
           batch_depth_down=get_image_batch_new(depth_input_down_list[idx])
           batch_depth_labels=get_image_batch_new(depth_label_list[idx])
           batch_I_add = get_image_batch_new(rgb_input_list[idx])/255
           counter += 1
           _, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_depth_down, self.labels: batch_depth_labels,self.I_add:batch_I_add})
+          print("test-------Epoch: [%2d], step: [%2d], image: [%2d], time: [%4.4f], loss: [%.8f]" \
+               % ((ep+1), counter,idx, time.time()-start_time, err))
 
           if counter % 1000 == 0:
             print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
@@ -150,8 +163,8 @@ class SRCNN(object):
               err_test[idx_test] = self.sess.run(self.loss, feed_dict={self.images: batch_depth_down, self.labels: batch_depth_labels,self.I_add:batch_I_add})    
 
             loss.append(np.mean(err_test))
-            # print("test-------Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
-            #   % ((ep+1), counter, time.time()-start_time, err))
+            print("test-------Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
+               % ((ep+1), counter, time.time()-start_time, err))
             print(loss)
             self.save(config.checkpoint_dir, counter)
 
@@ -303,11 +316,12 @@ class SRCNN(object):
       conv20 = tf.nn.relu(conv20) 
       residual_map, w_output, bias_output = conv2d(conv20, 64,1, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_21")
       output = tf.add(residual_map,self.images) 
-    return output, residual_map,conv1_f, conv3_f, conv5_f, conv7_f, w1_f, w3_f, w5_f, w7_f, bias1_f, bias3_f, bias5_f, bias7_f, \
-pool1_f, pool2_f, pool3_f, conv1, conv2, conv3, conv4, conv5, conv6, conv7, conv8, conv9, conv10, w1, w2, w3, w4, w5, w6, w7, w8,w9, w10,\
-bias1, bias2, bias3, bias4, bias5, bias6, bias7, bias8, bias9, bias10, pool1, pool2, pool3, pool4, pool1_input, pool2_input,pool3_input,\
-pool4_input, conv_input1, conv_input2, conv_input3, conv_input4, w_input1, w_input2,w_input3,w_input4,deconv2,deconv3,deconv4,deconv5,\
-conv13, conv14, conv15, conv16,conv17,conv18,conv19,conv20, w13, w14,w15,w16,w17,w18,w19,w20 
+    return output
+    #, residual_map,conv1_f, conv3_f, conv5_f, conv7_f, w1_f, w3_f, w5_f, w7_f, bias1_f, bias3_f, bias5_f, bias7_f, \
+#pool1_f, pool2_f, pool3_f, conv1, conv2, conv3, conv4, conv5, conv6, conv7, conv8, conv9, conv10, w1, w2, w3, w4, w5, w6, w7, w8,w9, w10,\
+#bias1, bias2, bias3, bias4, bias5, bias6, bias7, bias8, bias9, bias10, pool1, pool2, pool3, pool4, pool1_input, pool2_input,pool3_input,\
+#pool4_input, conv_input1, conv_input2, conv_input3, conv_input4, w_input1, w_input2,w_input3,w_input4,deconv2,deconv3,deconv4,deconv5,\
+#conv13, conv14, conv15, conv16,conv17,conv18,conv19,conv20, w13, w14,w15,w16,w17,w18,w19,w20 
 
 
   def model_test(self):
