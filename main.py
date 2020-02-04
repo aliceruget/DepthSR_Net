@@ -17,8 +17,10 @@ import scipy.io as sio
 import argparse
 import yaml
 import imageio
+tf.debugging.set_log_device_placement(True)
 #from __future__ import absolute_import, division, print_function, unicode_literals
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#mirrored_strategy = tf.distribute.MirroredStrategy(devices=["/gpu:0", "/gpu:1"])
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 config_sess = tf.ConfigProto()
 config_sess.gpu_options.allow_growth = True #Do not assign whole gpu memory, just use it on the go
@@ -90,9 +92,9 @@ def main(_):
     #depth_label_list     =glob.glob(os.path.join(data_dir,'*Df.mat'))
     rgb_input_list       =glob.glob(os.path.join(data_dir,'*_RGB.bmp'))
 
-    print(len(rgb_input_list))
     image_test=[]
     RMSE_tab = []
+    print(len(rgb_input_list))
     for ide in range(0,len(rgb_input_list)):
       image_test.append(np.float32(imageio.imread(rgb_input_list[ide])) / 255)
     for idx in range(0,len(rgb_input_list)):
