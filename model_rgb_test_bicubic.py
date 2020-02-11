@@ -92,19 +92,13 @@ class SRCNN(object):
 
 
     if config.is_train:     
-      #data_dir = os.path.join(os.getcwd(), 'DATA_TRAIN' )
       data_dir = config.data_path
-      #depth_input_down_list=glob.glob(os.path.join(data_dir,'patch_depth_down','*_patch_depth_down.mat'))
-      #depth_label_list     =glob.glob(os.path.join(data_dir,'patch_depth_label','*_patch_depth_label.mat'))
-      #rgb_input_list       =glob.glob(os.path.join(data_dir,'patch_I_add','*_patch_I_add.mat'))
       depth_input_down_list=glob.glob(os.path.join(data_dir,'*_patch_depth_down.mat'))
       depth_label_list     =glob.glob(os.path.join(data_dir,'*_patch_depth_label.mat'))
       rgb_input_list       =glob.glob(os.path.join(data_dir,'*_patch_I_add.mat'))
 
-      #(data_dir)
-      #print(depth_input_down_list)
-      #print(depth_label_list)
-      #print(rgb_input_list)
+      
+
       seed=545
       np.random.seed(seed)
       np.random.shuffle(depth_input_down_list)
@@ -113,12 +107,10 @@ class SRCNN(object):
       np.random.seed(seed)
       np.random.shuffle(rgb_input_list)
 
-     # depth_input_down_list_test=glob.glob(os.path.join(data_dir,'patch_depth_down_test','*_patch_depth_down.mat'))
-    # depth_label_list_test     =glob.glob(os.path.join(data_dir,'patch_depth_label_test','*_patch_depth_label.mat'))
-    #  rgb_input_list_test       =glob.glob(os.path.join(data_dir,'patch_I_add_test','*_patch_I_add.mat'))
       depth_input_down_list_test=glob.glob(os.path.join(data_dir,'patch_depth_down_test.mat'))
       depth_label_list_test     =glob.glob(os.path.join(data_dir,'patch_depth_label_test.mat'))
       rgb_input_list_test       =glob.glob(os.path.join(data_dir,'patch_I_add_test.mat'))
+      
       self.train_op = tf.train.AdamOptimizer(config.learning_rate,0.9).minimize(self.loss)
 
 
