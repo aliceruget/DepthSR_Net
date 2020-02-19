@@ -57,8 +57,8 @@ class SRCNN(object):
     self.depth_test = tf.compat.v1.placeholder(tf.float32, [1, self.h, self.w, 1], name='images_test')
     self.I_add_test = tf.compat.v1.placeholder(tf.float32, [1, self.h, self.w, self.c_dim], name='I_add_test')
     if self.i < 1 :
-      self.pred = self.model()
-    self.pred_test = self.model_test()
+      self.pred, self.dictionary = self.model()
+    self.pred_test, self.dictionary_test = self.model_test()
 
     if self.test_dir is None:
     
@@ -69,7 +69,7 @@ class SRCNN(object):
 
   def train(self, config):
     if config.is_train:
-      A=1;
+      A=1
     else:
 
       I_add_input_test = imread(self.test_dir, is_grayscale=True)/255   
@@ -81,10 +81,13 @@ class SRCNN(object):
       depth_label = sio.loadmat(self.test_label)['I_up']
       depth_down = sio.loadmat(self.test_depth)['I_down'].astype(np.float)
       
+      print('INPUT IMAGES')
+      #print(f'depth_down: type {type(depth_down)}, shape {depth_down.shape}, dtype {depth_down.dtype}')
+      #print(f'depth_label: type {type(depth_label)}, shape {depth_label.shape}, dtype {depth_label.dtype}')
+      #print(f'I_add_input_test: type {type(I_add_input_test)}, shape {I_add_input_test.shape}, dtype {I_add_input_test.dtype}')
+
       max_label=np.max(depth_label)
       min_label=np.min(depth_label)
-      max_down=np.max(depth_down)
-      min_down=np.min(depth_down)
 
       image_path = os.path.join(config.sample_dir, str(self.i)+"_down.png" )
       imsave(depth_down, image_path)
@@ -93,12 +96,11 @@ class SRCNN(object):
 
     if config.is_train:     
       data_dir = config.data_path
-      depth_input_down_list=glob.glob(os.path.join(data_dir,'*_patch_depth_down.mat'))
-      depth_label_list     =glob.glob(os.path.join(data_dir,'*_patch_depth_label.mat'))
-      rgb_input_list       =glob.glob(os.path.join(data_dir,'*_patch_I_add.mat'))
+      depth_input_down_list=sorted(glob.glob(os.path.join(data_dir,'*_patch_depth_down.mat')))
+      depth_label_list     =sorted(glob.glob(os.path.join(data_dir,'*_patch_depth_label.mat')))
+      rgb_input_list       =sorted(glob.glob(os.path.join(data_dir,'*_patch_I_add.mat')))
 
-      
-
+    
       seed=545
       np.random.seed(seed)
       np.random.shuffle(depth_input_down_list)
@@ -107,15 +109,19 @@ class SRCNN(object):
       np.random.seed(seed)
       np.random.shuffle(rgb_input_list)
 
-      depth_input_down_list_test=glob.glob(os.path.join(data_dir,'patch_depth_down_test.mat'))
-      depth_label_list_test     =glob.glob(os.path.join(data_dir,'patch_depth_label_test.mat'))
-      rgb_input_list_test       =glob.glob(os.path.join(data_dir,'patch_I_add_test.mat'))
-      
+      depth_input_down_list_test=sorted(glob.glob(os.path.join(data_dir,'*_patch_depth_down_test.mat')))
+      depth_label_list_test     =sorted(glob.glob(os.path.join(data_dir,'*_patch_depth_label_test.mat')))
+      rgb_input_list_test       =sorted(glob.glob(os.path.join(data_dir,'*_patch_I_add_test.mat')))
+
+      print(depth_input_down_list_test)
+      print(depth_label_list_test)
+      print(rgb_input_list_test)
       self.train_op = tf.train.AdamOptimizer(config.learning_rate,0.9).minimize(self.loss)
 
 
     tf.initialize_all_variables().run()
-    
+    ###tf.compat.v1.global_variables_initializer()
+
     counter = 0
     start_time = time.time()
     if self.load(self.checkpoint_dir):
@@ -125,95 +131,94 @@ class SRCNN(object):
 
     if config.is_train:
       print("Training...")
-      loss = []
+      loss_validation = []
+      loss_training = []
       for ep in range(config.epoch):
-        #print('ep'+ str(ep))
+        print('epoch=' + str(ep))
         batch_idxs=len(depth_input_down_list)
-        #print(batch_idxs)
         for idx in range(0,batch_idxs):
+          print('idx=' + str(idx))
           time_image = time.time()
-          #print('idx'+str(idx))
           batch_depth_down=get_image_batch_new(depth_input_down_list[idx])
           batch_depth_labels=get_image_batch_new(depth_label_list[idx])
           batch_I_add = get_image_batch_new(rgb_input_list[idx])/255
           counter += 1
-          _, err = self.sess.run([self.train_op, self.loss], feed_dict={self.images: batch_depth_down, self.labels: batch_depth_labels,self.I_add:batch_I_add})
-          #print("test-------Epoch: [%2d], step: [%2d], image: [%2d], time: [%4.4f], loss: [%.8f]" \
-          #     % ((ep+1), counter,idx, time.time()-time_image, err))
-          
+          _, err, dictionary = self.sess.run([self.train_op, self.loss,self.dictionary], feed_dict={self.images: batch_depth_down, self.labels: batch_depth_labels,self.I_add:batch_I_add})
+          loss_training.append(err) 
+          dictionary['loss_training'] = err
+          dictionary['self.images'] = batch_depth_down
+          dictionary['self.labels'] = batch_depth_labels
+          dictionary['self.I_add'] = batch_I_add
+          dictionary['idx'] = idx
+          #print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
+          #    % ((ep+1), counter, time.time()-time_image, err))
           if counter % 1000 == 0:
             print("Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
               % ((ep+1), counter, time.time()-start_time, err))
+          if counter ==1:
+             if config.save_parameters:
+               sio.savemat(os.path.join(config.results_path, 'parameters_initial.mat'), dictionary)
+               print('Initial Parameters saved')
 
           if idx == batch_idxs-1:
           # if counter % 10 == 0:
             batch_test_idxs = len(depth_input_down_list_test) // config.batch_size
             err_test =  np.ones(batch_test_idxs)
+            print('batch_test_idxs = '+ str(batch_test_idxs))
             for idx_test in range(0,batch_test_idxs):
               batch_depth_down = get_image_batch(depth_input_down_list_test, idx_test*config.batch_size , (idx_test+1)*config.batch_size)
               batch_depth_labels = get_image_batch(depth_label_list_test, idx_test*config.batch_size , (idx_test+1)*config.batch_size)
               batch_I_add = get_image_batch(rgb_input_list_test, idx_test*config.batch_size , (idx_test+1)*config.batch_size)/255
               err_test[idx_test] = self.sess.run(self.loss, feed_dict={self.images: batch_depth_down, self.labels: batch_depth_labels,self.I_add:batch_I_add})    
-
-            loss.append(np.mean(err_test))
-            print("test-------Epoch: [%2d], step: [%2d], time: [%4.4f], loss: [%.8f]" \
-               % ((ep+1), counter, time.time()-start_time, err))
+            
+            loss_validation.append(np.mean(err_test))
+            dictionary['loss_validation'] = loss_validation
+            dictionary['self.images_validation'] = batch_depth_down
+            dictionary['self.labels_validation'] = batch_depth_labels
+            dictionary['self.I_add_validation'] = batch_I_add
+            dictionary['err_test'] = err_test
+            dictionary['ep'] = ep
+            print("test-------Epoch: [%2d], step: [%2d], time: [%4.4f], loss_validation: [%.8f]" \
+               % ((ep+1), counter, time.time()-start_time, loss_validation))
                
-            print(loss)
+            print(loss_validation)
             self.save(config.checkpoint_dir, counter)
+
+        if config.save_parameters:
+          sio.savemat(os.path.join(config.results_path, 'parameters.mat'), dictionary)
+        
+
 
 
     else:
       print("Testing...")
       tm = time.time()
-      
-      #if config.save_parameters:
-      result, residual_map,conv1_f, conv3_f, conv5_f, conv7_f, w1_f, w3_f, w5_f, w7_f, bias1_f, bias3_f, bias5_f, bias7_f, \
-          pool1_f, pool2_f, pool3_f, conv1, conv2, conv3, conv4, conv5, conv6, conv7, conv8, conv9, conv10, w1, w2, w3, w4, w5, w6, w7,w8, w9, w10,\
-          bias1, bias2, bias3, bias4, bias5, bias6, bias7, bias8, bias9, bias10, pool1, pool2, pool3, pool4, pool1_input, pool2_input,pool3_input,\
-          pool4_input, conv_input1, conv_input2, conv_input3, conv_input4, w_input1, w_input2,w_input3,w_input4,deconv2,deconv3,deconv4,deconv5,\
-          conv13, conv14, conv15, conv16,conv17,conv18,conv19,conv20, w13, w14, w15, w16,w17,w18,w19,w20 = self.sess.run(self.pred_test, feed_dict= {self.depth_test:depth_down ,self.I_add_test:I_add_input_test})
+ 
+      result, dictionary = self.sess.run([self.pred_test,self.dictionary_test], feed_dict= {self.depth_test:depth_down ,self.I_add_test:I_add_input_test})
      
       print('Rec time ', time.time() - tm)
       
       result = np.minimum(np.maximum(result.squeeze(),0),1)
 
       result = ((result)*(max_label-min_label)+min_label).astype(np.uint8)
-      print('TYPES !!!!')
-      print(depth_label.dtype)
       rmse_value = rmse(depth_label,result) 
-      
+      #print(f'result: type f{type(result)}, shape {result.shape}, dtype {result.dtype} ')
       print("rmse: [%f]" % rmse_value)
       image_path = config.results_path     
       image_path = os.path.join(image_path, str(self.i)+"_sr.png" )
       imsave(result, image_path)
-      
-      #initial rmse
+
       init_image = np.minimum(np.maximum(depth_down.squeeze(),0),1)
       init_image = ((init_image)*(max_label-min_label)+min_label).astype(np.uint8)
       init_rmse = rmse(depth_label, init_image)   
       print("initial rmse: [%f]" % init_rmse)
       
-      if config.save_parameters:
-         # create dictionary 
-         dictionary = {'encoder_conv':{'conv1':conv1, 'conv2':conv2, 'conv3':conv3,'conv4':conv4, 'conv5':conv5, 'conv6':conv6,'conv7' : conv7, 'conv8':conv8, 'conv9':conv9, 'conv10':conv10},\
-           'encoder_w':{'w1':w1, 'w2':w2, 'w3':w3, 'w4':w4, 'w5':w5, 'w6':w6, 'w7':w7,'w8':w8, 'w9':w9, 'w10':w10}, \
-           'decoder_conv':{'deconv2':deconv2,'deconv3':deconv3, 'deconv4':deconv4, 'deconv5':deconv5, 'conv13':conv13,\
-                      'conv14' : conv14, 'conv15':conv15, 'conv16':conv16, 'conv17':conv17,'conv18' : conv18, 'conv19':conv19, 'conv20':conv20}, \
-           'decoder_w':{'w13':w13, 'w14':w14, 'w15':w15, 'w16':w16,'w17':w17,'w18':w18,'w19':w19 ,'w20':w20}, \
-           'I_branch_F_conv':{'conv1_f':conv1_f, 'conv3_f':conv3_f,'conv5_f':conv5_f,'conv7_f' : conv7_f}, \
-           'I_branch_F_w_f':{'w1_f':w1_f,'w3_f':w3_f, 'w5_f':w5_f, 'w7_f':w7_f}, \
-           'Input_Pyramid_conv':{'conv_input1':conv_input1, 'conv_input2':conv_input2, 'conv_input3':conv_input3, 'conv_input4':conv_input4},\
-           'Input_Pyramid_w':{'w_input1':w_input1, 'w_input2':w_input2, 'w_input3':w_input3, 'w_input4':w_input4}, \
-           'rmse':{'init_rmse' : init_rmse, 'rmse' : rmse_value}, \
-           'inputs':{'I_init': I_add_input_test, 'D_down':depth_down, 'D_label':depth_label}, \
-           'results':{'result' : result, 'residual_map':residual_map}, \
-           'Rec time ': time.time() - tm}
-      
+      dictionary['rmse']      = {'init_rmse' : init_rmse, 'rmse' : rmse_value}
+      dictionary['inputs']    = {'I_init': I_add_input_test, 'D_down':depth_down, 'D_label':depth_label}
+      dictionary['Rec time '] = time.time() - tm
+       
+      if config.save_parameters:     
          sio.savemat(os.path.join(config.results_path, 'parameters.mat'), dictionary)
-  
-
-
       return(rmse_value)
 
     
@@ -284,25 +289,29 @@ class SRCNN(object):
       conv10 = tf.nn.relu(conv10)
       
 
-      deconv2 = tf.nn.relu(deconv2d(conv10, conv8.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_2")) 
+      deconv2, w_deconv2, bias_deconv2 = deconv2d(conv10, conv8.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_2")
+      deconv2 = tf.nn.relu(deconv2) 
       conb2 = tf.concat(axis = 3, values = [deconv2,conv8,conv7_f])  
       conv13, w13, bias13 = conv2d(conb2, 3072,512, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_13")
       conv13 = tf.nn.relu(conv13)
       conv14, w14, bias14 = conv2d(conv13, 512,512, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_14")
       conv14 = tf.nn.relu(conv14)
-      deconv3 = tf.nn.relu(deconv2d(conv14, conv6.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_3"))                          
+      deconv3, w_deconv3, bias_deconv3 = deconv2d(conv14, conv6.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_3")
+      deconv3 = tf.nn.relu(deconv3)                          
       conb3 = tf.concat(axis = 3, values = [deconv3,conv6,conv5_f])
       conv15, w15, bias15 = conv2d(conb3, 768,256, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_15")
       conv15 = tf.nn.relu(conv15)      
-      conv16,w16, bias16 = conv2d(conv15, 256,256, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_16")
+      conv16, w16, bias16 = conv2d(conv15, 256,256, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_16")
       conv16 = tf.nn.relu(conv16)
-      deconv4 = tf.nn.relu(deconv2d(conv16, conv4.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_4"))    
+      deconv4, w_deconv4, bias_deconv4 = deconv2d(conv16, conv4.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_4")
+      deconv4 = tf.nn.relu(deconv4)    
       conb4 = tf.concat(axis = 3, values = [deconv4,conv4,conv3_f])
       conv17, w17, bias17 = conv2d(conb4, 384,128, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_17")
       conv17 = tf.nn.relu(conv17)      
       conv18, w18, bias18 = conv2d(conv17, 128,128, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_18")
-      conv18 = tf.nn.relu(conv18)
-      deconv5 = tf.nn.relu(deconv2d(conv18, conv2.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_5"))
+      conv18 = tf.nn.relu(conv18) 
+      deconv5, w_deconv5, bias_deconv5 = deconv2d(conv18, conv2.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_5")
+      deconv5 = tf.nn.relu(deconv5)
       conb5 = tf.concat(axis = 3, values = [deconv5,conv2,conv1_f])
       conv19, w19, bias19 = conv2d(conb5, 192,64, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_19")
       conv19 = tf.nn.relu(conv19)      
@@ -310,12 +319,29 @@ class SRCNN(object):
       conv20 = tf.nn.relu(conv20) 
       residual_map, w_output, bias_output = conv2d(conv20, 64,1, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_21")
       output = tf.add(residual_map,self.images) 
-    return output
-    #, residual_map,conv1_f, conv3_f, conv5_f, conv7_f, w1_f, w3_f, w5_f, w7_f, bias1_f, bias3_f, bias5_f, bias7_f, \
-#pool1_f, pool2_f, pool3_f, conv1, conv2, conv3, conv4, conv5, conv6, conv7, conv8, conv9, conv10, w1, w2, w3, w4, w5, w6, w7, w8,w9, w10,\
-#bias1, bias2, bias3, bias4, bias5, bias6, bias7, bias8, bias9, bias10, pool1, pool2, pool3, pool4, pool1_input, pool2_input,pool3_input,\
-#pool4_input, conv_input1, conv_input2, conv_input3, conv_input4, w_input1, w_input2,w_input3,w_input4,deconv2,deconv3,deconv4,deconv5,\
-#conv13, conv14, conv15, conv16,conv17,conv18,conv19,conv20, w13, w14,w15,w16,w17,w18,w19,w20 
+
+      dictionary = {'encoder_conv':{'conv1':conv1, 'conv2':conv2, 'conv3':conv3,'conv4':conv4, 'conv5':conv5, 'conv6':conv6,'conv7' : conv7, 'conv8':conv8, 'conv9':conv9, 'conv10':conv10},\
+           'encoder_w':{'w1':w1, 'w2':w2, 'w3':w3, 'w4':w4, 'w5':w5, 'w6':w6, 'w7':w7,'w8':w8, 'w9':w9, 'w10':w10}, \
+           'decoder_conv':{'deconv2':deconv2,'deconv3':deconv3, 'deconv4':deconv4, 'deconv5':deconv5, 'conv13':conv13,\
+              'conv14' : conv14, 'conv15':conv15, 'conv16':conv16, 'conv17':conv17,'conv18' : conv18, 'conv19':conv19, 'conv20':conv20}, \
+           'decoder_w':{'w13':w13, 'w14':w14, 'w15':w15, 'w16':w16,'w17':w17,'w18':w18,'w19':w19 ,'w20':w20, \
+              'w_deconv2':w_deconv2, 'w_deconv3':w_deconv3, 'w_deconv4':w_deconv4, 'w_deconv5':w_deconv5 }, \
+           'I_branch_F_conv':{'conv1_f':conv1_f, 'conv3_f':conv3_f,'conv5_f':conv5_f,'conv7_f' : conv7_f}, \
+           'I_branch_F_w_f':{'w1_f':w1_f,'w3_f':w3_f, 'w5_f':w5_f, 'w7_f':w7_f}, \
+           'Input_Pyramid_conv':{'conv_input1':conv_input1, 'conv_input2':conv_input2, 'conv_input3':conv_input3, 'conv_input4':conv_input4},\
+           'Input_Pyramid_w':{'w_input1':w_input1, 'w_input2':w_input2, 'w_input3':w_input3, 'w_input4':w_input4}, \
+           'last_add':{'residual_map':residual_map, 'w_output':w_output, 'bias_output':bias_output}, \
+           'results':{'result' : output},\
+           'encoder_bias':{'bias1': bias1,'bias2': bias2, 'bias3': bias3, 'bias4': bias4, 'bias5': bias5, 'bias6': bias6, \
+             'bias7': bias7, 'bias8': bias8, 'bias9': bias9, 'bias10': bias10}, \
+           'decoder_bias':{'bias13': bias13, 'bias14': bias14, 'bias15': bias15, 'bias16': bias16, 'bias17': bias17, \
+               'bias18': bias18, 'bias19': bias19, 'bias20': bias20, 'bias_deconv2' : bias_deconv2, 'bias_deconv3' : bias_deconv3, \
+                 'bias_deconv4' : bias_deconv4, 'bias_deconv5' : bias_deconv5}, \
+           'I_branch_F_bias':{'bias1_f': bias1_f, 'bias3_f': bias3_f, 'bias5_f': bias5_f, 'bias7_f': bias7_f}, \
+           'Input_Pyramid_bias':{'bias_input1':bias_input1, 'bias_input2':bias_input2, 'bias_input3':bias_input3, 'bias_input4':bias_input4}}
+
+    return output, dictionary
+
 
 
   def model_test(self):
@@ -382,26 +408,29 @@ class SRCNN(object):
       conv10, w10, bias10 = conv2d(conv9, 1024,1024, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_10")
       conv10 = tf.nn.relu(conv10)
       
-
-      deconv2 = tf.nn.relu(deconv2d(conv10, conv8.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_2")) 
+      deconv2, w_deconv2, bias_deconv2 = deconv2d(conv10, conv8.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_2")
+      deconv2 = tf.nn.relu(deconv2) 
       conb2 = tf.concat(axis = 3, values = [deconv2,conv8,conv7_f])  
       conv13, w13, bias13 = conv2d(conb2, 3072,512, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_13")
       conv13 = tf.nn.relu(conv13)
       conv14, w14, bias14 = conv2d(conv13, 512,512, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_14")
       conv14 = tf.nn.relu(conv14)
-      deconv3 = tf.nn.relu(deconv2d(conv14, conv6.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_3"))                          
+      deconv3, w_deconv3, bias_deconv3 = deconv2d(conv14, conv6.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_3")
+      deconv3 = tf.nn.relu(deconv3)                          
       conb3 = tf.concat(axis = 3, values = [deconv3,conv6,conv5_f])
       conv15, w15, bias15 = conv2d(conb3, 768,256, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_15")
       conv15 = tf.nn.relu(conv15)      
       conv16, w16, bias16 = conv2d(conv15, 256,256, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_16")
       conv16 = tf.nn.relu(conv16)
-      deconv4 = tf.nn.relu(deconv2d(conv16, conv4.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_4"))    
+      deconv4, w_deconv4, bias_deconv4 = deconv2d(conv16, conv4.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_4")
+      deconv4 = tf.nn.relu(deconv4)    
       conb4 = tf.concat(axis = 3, values = [deconv4,conv4,conv3_f])
       conv17, w17, bias17 = conv2d(conb4, 384,128, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_17")
       conv17 = tf.nn.relu(conv17)      
       conv18, w18, bias18 = conv2d(conv17, 128,128, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_18")
       conv18 = tf.nn.relu(conv18) 
-      deconv5 = tf.nn.relu(deconv2d(conv18, conv2.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_5"))
+      deconv5, w_deconv5, bias_deconv5 = deconv2d(conv18, conv2.get_shape().as_list(), k_h=3, k_w=3, d_h=2, d_w=2,name="deconv2d_5")
+      deconv5 = tf.nn.relu(deconv5)
       conb5 = tf.concat(axis = 3, values = [deconv5,conv2,conv1_f])
       conv19, w19, bias19 = conv2d(conb5, 192,64, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_19")
       conv19 = tf.nn.relu(conv19)      
@@ -409,12 +438,28 @@ class SRCNN(object):
       conv20 = tf.nn.relu(conv20) 
       residual_map, w_output, bias_output = conv2d(conv20, 64,1, k_h=3, k_w=3, d_h=1, d_w=1,name="conv2d_21")
       output = tf.add(residual_map,self.depth_test) 
-      
-    return output,residual_map, conv1_f, conv3_f, conv5_f, conv7_f, w1_f, w3_f, w5_f, w7_f, bias1_f, bias3_f, bias5_f, bias7_f, \
-pool1_f, pool2_f, pool3_f, conv1, conv2, conv3, conv4, conv5, conv6, conv7, conv8, conv9, conv10, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10,\
-bias1, bias2, bias3, bias4, bias5, bias6, bias7, bias8, bias9, bias10, pool1, pool2, pool3, pool4, pool1_input, pool2_input,pool3_input,\
-pool4_input, conv_input1, conv_input2, conv_input3, conv_input4, w_input1, w_input2,w_input3,w_input4,deconv2,deconv3,deconv4,deconv5,\
-conv13, conv14, conv15, conv16,conv17,conv18,conv19,conv20, w13, w14,w15,w16,w17,w18,w19,w20
+
+      dictionary = {'encoder_conv':{'conv1':conv1, 'conv2':conv2, 'conv3':conv3,'conv4':conv4, 'conv5':conv5, 'conv6':conv6,'conv7' : conv7, 'conv8':conv8, 'conv9':conv9, 'conv10':conv10},\
+           'encoder_w':{'w1':w1, 'w2':w2, 'w3':w3, 'w4':w4, 'w5':w5, 'w6':w6, 'w7':w7,'w8':w8, 'w9':w9, 'w10':w10}, \
+           'decoder_conv':{'deconv2':deconv2,'deconv3':deconv3, 'deconv4':deconv4, 'deconv5':deconv5, 'conv13':conv13,\
+              'conv14' : conv14, 'conv15':conv15, 'conv16':conv16, 'conv17':conv17,'conv18' : conv18, 'conv19':conv19, 'conv20':conv20}, \
+           'decoder_w':{'w13':w13, 'w14':w14, 'w15':w15, 'w16':w16,'w17':w17,'w18':w18,'w19':w19 ,'w20':w20, \
+              'w_deconv2':w_deconv2, 'w_deconv3':w_deconv3, 'w_deconv4':w_deconv4, 'w_deconv5':w_deconv5 }, \
+           'I_branch_F_conv':{'conv1_f':conv1_f, 'conv3_f':conv3_f,'conv5_f':conv5_f,'conv7_f' : conv7_f}, \
+           'I_branch_F_w_f':{'w1_f':w1_f,'w3_f':w3_f, 'w5_f':w5_f, 'w7_f':w7_f}, \
+           'Input_Pyramid_conv':{'conv_input1':conv_input1, 'conv_input2':conv_input2, 'conv_input3':conv_input3, 'conv_input4':conv_input4},\
+           'Input_Pyramid_w':{'w_input1':w_input1, 'w_input2':w_input2, 'w_input3':w_input3, 'w_input4':w_input4}, \
+           'last_add':{'residual_map':residual_map, 'w_output':w_output, 'bias_output':bias_output}, \
+           'results':{'result' : output},\
+           'encoder_bias':{'bias1': bias1,'bias2': bias2, 'bias3': bias3, 'bias4': bias4, 'bias5': bias5, 'bias6': bias6, \
+             'bias7': bias7, 'bias8': bias8, 'bias9': bias9, 'bias10': bias10}, \
+           'decoder_bias':{'bias13': bias13, 'bias14': bias14, 'bias15': bias15, 'bias16': bias16, 'bias17': bias17, \
+               'bias18': bias18, 'bias19': bias19, 'bias20': bias20, 'bias_deconv2' : bias_deconv2, 'bias_deconv3' : bias_deconv3, \
+                 'bias_deconv4' : bias_deconv4, 'bias_deconv5' : bias_deconv5}, \
+           'I_branch_F_bias':{'bias1_f': bias1_f, 'bias3_f': bias3_f, 'bias5_f': bias5_f, 'bias7_f': bias7_f}, \
+           'Input_Pyramid_bias':{'bias_input1':bias_input1, 'bias_input2':bias_input2, 'bias_input3':bias_input3, 'bias_input4':bias_input4}}
+
+    return output, dictionary
 
   
   def save(self, checkpoint_dir, step):
