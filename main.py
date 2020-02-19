@@ -17,11 +17,14 @@ import scipy.io as sio
 import argparse
 import yaml
 import imageio
-tf.debugging.set_log_device_placement(True)
+#from tensorflow.python.client import device_lib
+#print('DEVICE DEVICE DEVICE DEVICE')
+#print(device_lib.list_local_devices())
+#tf.debugging.set_log_device_placement(True)
 #from __future__ import absolute_import, division, print_function, unicode_literals
 #mirrored_strategy = tf.distribute.MirroredStrategy(devices=["/gpu:0", "/gpu:1"])
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+#print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 config_sess = tf.ConfigProto()
 config_sess.gpu_options.allow_growth = True #Do not assign whole gpu memory, just use it on the go
 config_sess.allow_soft_placement = True #If a operation is not define it the default device, let it execute in another.
@@ -83,18 +86,17 @@ def main(_):
                   checkpoint_dir=FLAGS.checkpoint_dir,
                   sample_dir=FLAGS.sample_dir)
       srcnn.train(FLAGS)
+      #RMSE_tab.append(srcnn.train(FLAGS))
+      #sio.savemat(os.path.join(results_path, 'RMSE_tab.mat'), {'RMSE_tab':RMSE_tab})
   else:
     sio.savemat(os.path.join(results_path, 'configuration.mat'),{"data_path":data_path, "is_train":is_train,"checkpoint_path":checkpoint_path, "config":config})
-    
-    #data_dir = os.path.join(os.getcwd(), 'DATA_TEST' )
-    data_dir = data_path      
-    #depth_input_down_list=glob.glob(os.path.join(data_dir,'*Df_down.mat'))
-    #depth_label_list     =glob.glob(os.path.join(data_dir,'*Df.mat'))
-    rgb_input_list       =glob.glob(os.path.join(data_dir,'*_RGB.bmp'))
 
+    data_dir = data_path      
+    rgb_input_list =glob.glob(os.path.join(data_dir,'*_RGB.bmp'))
     image_test=[]
     RMSE_tab = []
-    print(len(rgb_input_list))
+    print(f'The number of input images is {len(rgb_input_list)}')
+    
     for ide in range(0,len(rgb_input_list)):
       image_test.append(np.float32(imageio.imread(rgb_input_list[ide])) / 255)
     for idx in range(0,len(rgb_input_list)):
@@ -102,11 +104,12 @@ def main(_):
       depth_label_list_image   = glob.glob(os.path.join(data_dir,str(idx)+'_Df.mat'))
       rgb_input_list_image     = glob.glob(os.path.join(data_dir,str(idx)+'_RGB.bmp'))
       
-      print('IMAGE - IMAGE')
+      print('PATH INPUT IMAGES')
+      print('index_image ='+str(idx))
       print(depth_input_down_image)
       print(depth_label_list_image)
       print(rgb_input_list_image)
-      print('index_image ='+str(idx))
+      
       depth_up = sio.loadmat(depth_label_list_image[0])['I_up']
       #image_path = os.path.join(os.getcwd(), 'sample')
       image_path = results_path

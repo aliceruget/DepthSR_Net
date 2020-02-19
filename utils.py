@@ -33,35 +33,35 @@ def read_data(path):
     I_add = np.array(hf.get('I_add'))
     return depth_down, depth_label , I_add
 
-def preprocess(path, scale=3):
-  """
-  Preprocess single image file 
-    (1) Read original image as YCbCr format (and grayscale as default)
-    (2) Normalize
-    (3) Apply image file with bicubic interpolation
+# def preprocess(path, scale=3):
+#   """
+#   Preprocess single image file 
+#     (1) Read original image as YCbCr format (and grayscale as default)
+#     (2) Normalize
+#     (3) Apply image file with bicubic interpolation
 
-  Args:
-    path: file path of desired file
-    input_: image applied bicubic interpolation (low-resolution)
-    label_: image with original resolution (high-resolution)
-  """
-  # path_depth = 
-  # path_I = 
-  image = imread(path, is_grayscale=True)
-  #I_add = imread(path, is_grayscale=False)
-  label_ = modcrop(image, scale)
+#   Args:
+#     path: file path of desired file
+#     input_: image applied bicubic interpolation (low-resolution)
+#     label_: image with original resolution (high-resolution)
+#   """
+#   # path_depth = 
+#   # path_I = 
+#   image = imread(path, is_grayscale=True)
+#   #I_add = imread(path, is_grayscale=False)
+#   label_ = modcrop(image, scale)
 
-  # Must be normalized.astype(np.uint8)
+#   # Must be normalized.astype(np.uint8)
 
 
-  # label_ = image / 255.
-  label_ = label_ / 255.
-  # plt.imshow(image)
-  # plt.show()
-  input_ = scipy.ndimage.interpolation.zoom(label_, (1./scale), prefilter=False)
-  # input_ = scipy.ndimage.interpolation.zoom(input_, (scale/1.), prefilter=False)
-  # input_= image / 255.
-  return input_, label_
+#   # label_ = image / 255.
+#   label_ = label_ / 255.
+#   # plt.imshow(image)
+#   # plt.show()
+#   input_ = scipy.ndimage.interpolation.zoom(label_, (1./scale), prefilter=False)
+#   # input_ = scipy.ndimage.interpolation.zoom(input_, (scale/1.), prefilter=False)
+#   # input_= image / 255.
+#   return input_, label_
 
 def prepare_data(sess, dataset):
   """
